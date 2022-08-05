@@ -177,15 +177,28 @@ double** mat_mult(double** mat1, double** mat2, int N){
         }
     }
 
+
      for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             rslt[i][j] = 0;
  
             for (k = 0; k < N; k++) {
+                
                 rslt[i][j] += mat1[i][k] * mat2[k][j];
             }
         }
      }
+     return rslt;
+}
+
+double **mat_mult3(double **mat1, double ** mat2, double **mat3, int N){
+    double **res, **mult1;
+    
+    mult1 = mat_mult(mat1, mat2, N);
+    res = mat_mult(mult1, mat3, N);
+
+    return res;
+
 }
 
 double** lnorm(double** data){
@@ -238,9 +251,192 @@ double** lnorm(double** data){
 
 }
 
-int main(int argc, char* argv){
-    
 
+int sign(double num){
+    if (num >= 0){
+        return 1;
+    }
+    return -1;
+}
+
+int *find_pivot(double **mat, int N){  /* mat is NxN */
+    int i, j, row, column;
+    double max_val = mat[0][1];
+    int *res = calloc(2, sizeof(int));
+    i = 0;
+    j = 0;
+    //m = sizeof(mat)/sizeof(mat[0]);
+    //n = sizeof(mat[0])/sizeof(double);
+    for (row = 0; row < N; row++){
+        for (column = 0; column < N; column++){
+            if (row != column && fabs(mat[row][column]) >= max_val){
+                max_val = fabs(mat[row][column]);
+                i = row;
+                j = column;
+                //printf("i and j in loop: %d, %d", i,j);
+            }
+        }
+    }
+    res[0] = i;
+    res[1] = j;
+    //printf("i = %d, j = %d", i,j);
+    return res;
+}
+
+
+double **Rotation_mat(double **S, int N){  /*returns P the Jacobi rotation matrix of S*/
+    double c, s, teta, t, A_ii, A_jj, A_ij;
+    double **P;
+    int *pivot;
+    int row, column, i, j;
+
+    //m = sizeof(S)/sizeof(S[0]);
+    //n = sizeof(S[0])/sizeof(double);
+    pivot = find_pivot(S, N);
+
+    //TODO calloc P done
+    P = calloc(N, sizeof(double*));
+    for (row = 0; row < N; row++){
+        P[row] = calloc(N, sizeof(double));
+    }
+
+    A_jj = S[pivot[1]][pivot[1]];
+    A_ii = S[pivot[0]][pivot[0]];
+    A_ij = S[pivot[0]][pivot[1]];
+    teta = (A_jj-A_ii)/(2*A_ij);
+
+    t = sign(teta)/(fabs(teta) + sqrt(teta*teta + 1));
+    c = 1/sqrt(t*t + 1);
+    s = t*c;
+
+
+
+    //i = fmin(pivot[0], pivot[1]);
+    //j = fmax(pivot[0], pivot[1]);
+    i = pivot[0];
+    j = pivot[1];
+    for (row = 0; row < N; row++){
+        for (column = 0; column < N; column++){
+            if (row == column && row != pivot[0] && row != pivot[1]){ /* case of 1 */
+                P[row][column] = 1;
+            }
+            if (row == column == pivot[0] || row == column == pivot[1]){    /* case of c*/
+                P[row][column] = c;
+            }
+            if (row == i && column == N-1-i){  /*case of s  might not be max min*/
+                P[row][column] = s;
+            }
+            if (row == j && column == N-1-j){   /*case of -s    might not be max min*/
+                P[row][column] = -1*s;
+            }
+
+        }
+    }
+    return P;
 
 }
+
+double **transpose(double **mat, int N){
+    double **transposed;
+    int row, column;
+    transposed = calloc(N, sizeof(double*));
+    for (row = 0; row < N; row++){
+        transposed[row] = calloc(N, sizeof(double));
+    }
+    for (row = 0; row < N; row++){
+        for (column = 0; column < N; column++){
+            transposed[row][column] = mat[column][row];
+        }
+    }
+    return transposed;
+
+}
+
+void free_mat(double **mat, int m){
+    int row;
+    for (row = 0; row < m; row++){
+        free(mat[row]);
+    }
+    free(mat);
+}
+
+double off(double **mat, int N){
+    double res;
+    int row, column;
+
+    res = 0;
+
+    for (row = 0; row < N; row++){
+        for (column = 0; column < N; column++){
+            if (row != column){
+                res += mat[row][column] * mat[row][column];
+            }
+        }
+    }
+    return res;
+}
+
+void print_mat(double **mat, int N){
+    int row, column;
+    for (row = 0; row < N; row++){
+        for (column = 0; column < N-1; column++){
+            printf("%f, ", mat[row][column]);
+        }
+        printf("%f\n", mat[row][N-1]);
+    }
+}
+
+
+
+double **Jacoby(double **A, int N){
+    double eps, dif, offA, offB;
+    double **P, **P_t, **B;
+    int counter;
+
+
+    eps = 1.0 * pow(10, -5);
+    counter = 0;
+    dif = 10;
+    offA = off(A, N);
+
+    while (dif > eps && counter < 100){
+        P = Rotation_mat(A, N);
+        P_t = transpose(P, N);
+        B = mat_mult3(P_t, A, P, N);
+        offB = off(B, N);
+        dif = fabs(offA - offB);
+        free_mat(A, N);
+        A = B;
+        offA = offB;
+        counter += 1;
+    }
+
+    
+    return A;
+    
+}
+
+void test_jacoby(){
+    double **mat, **A;
+    mat = calloc(2, sizeof(double*));
+    mat[0] = calloc(2, sizeof(double));
+    mat[1] = calloc(2, sizeof(double));
+    mat[0][0] = 1;
+    mat[0][1] = 2;
+    mat[1][0] = 3;
+    mat[1][1] = 4;
+
+    A = Jacoby(mat, 2);
+    print_mat(A, 2);
+    free_mat(A, 2);
+    //free_mat(mat);
+}
+
+
+int main(){
+    test_jacoby();
+    return 0;
+}
+
+
 
