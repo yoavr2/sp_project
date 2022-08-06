@@ -7,6 +7,14 @@
 /* check that we free al unnecessary memory */
 
 
+void free_mat(double **mat, int m){
+    int row;
+    for (row = 0; row < m; row++){
+        free(mat[row]);
+    }
+    free(mat);
+}
+
 double calc_dist(double *x, double *y, int dim){/*calculate (x-y)^2*/
 
 
@@ -42,11 +50,10 @@ double calc_exp_euc(double* x, double* y, int N){
     return res;
 }/*end of function calc_exp_euc*/
 
-double** wam(double** mat){
+double** wam(double** mat, int N){
     
     double** wei_adj_mat;
-    int N, i, j;
-    N = sizeof(mat)/sizeof(mat[0]);
+    int i, j;
     wei_adj_mat = (double **)malloc(N * sizeof(double*));
     if(!wei_adj_mat){/*malloc failed*/
         printf("An Error Has Occurred\n");
@@ -92,10 +99,9 @@ double sum_line(double* line, int N){
 }
 
 
-double** ddg(double** mat){
+double** ddg(double** mat, int N){
     double** dia_deg_mat,** wei_adj_mat;
-    int N, i, j;
-    N = sizeof(mat)/sizeof(mat[0]);
+    int i, j;
     dia_deg_mat = (double **)malloc(N * sizeof(double*));
     if(!dia_deg_mat){/*malloc failed*/
         printf("An Error Has Occurred\n");
@@ -110,7 +116,7 @@ double** ddg(double** mat){
         }
     }
 
-    wei_adj_mat = wam(mat);
+    wei_adj_mat = wam(mat, N);
     
     for(i=0; i<N; i++){
         for(j=0; j<N; j++){
@@ -122,7 +128,7 @@ double** ddg(double** mat){
             }
         }
     }
-    free(wei_adj_mat);
+    free_mat(wei_adj_mat, N);
     return dia_deg_mat;
 }/*end of function ddg*/
 
@@ -201,14 +207,13 @@ double **mat_mult3(double **mat1, double ** mat2, double **mat3, int N){
 
 }
 
-double** lnorm(double** data){
+double** lnorm(double** data, int N){
     double** dia_deg_mat,** wei_adj_mat,** norm;
     double ** mult1,** mult2,** dia_deg_sqrt_mat;
-    int N, i, j;
+    int i, j;
 
-    N = sizeof(data)/sizeof(data[0]);
-    dia_deg_mat = ddg(data);
-    wei_adj_mat = wam(data);
+    dia_deg_mat = ddg(data, N);
+    wei_adj_mat = wam(data, N);
     dia_deg_sqrt_mat = calc_mat_sqrt(dia_deg_mat, N);
 
     norm = (double **)malloc(N * sizeof(double*));
@@ -265,21 +270,17 @@ int *find_pivot(double **mat, int N){  /* mat is NxN */
     int *res = calloc(2, sizeof(int));
     i = 0;
     j = 0;
-    //m = sizeof(mat)/sizeof(mat[0]);
-    //n = sizeof(mat[0])/sizeof(double);
     for (row = 0; row < N; row++){
         for (column = 0; column < N; column++){
             if (row != column && fabs(mat[row][column]) >= max_val){
                 max_val = fabs(mat[row][column]);
                 i = row;
                 j = column;
-                //printf("i and j in loop: %d, %d", i,j);
             }
         }
     }
     res[0] = i;
     res[1] = j;
-    //printf("i = %d, j = %d", i,j);
     return res;
 }
 
@@ -290,11 +291,8 @@ double **Rotation_mat(double **S, int N){  /*returns P the Jacobi rotation matri
     int *pivot;
     int row, column, i, j;
 
-    //m = sizeof(S)/sizeof(S[0]);
-    //n = sizeof(S[0])/sizeof(double);
     pivot = find_pivot(S, N);
 
-    //TODO calloc P done
     P = calloc(N, sizeof(double*));
     for (row = 0; row < N; row++){
         P[row] = calloc(N, sizeof(double));
@@ -311,8 +309,8 @@ double **Rotation_mat(double **S, int N){  /*returns P the Jacobi rotation matri
 
 
 
-    //i = fmin(pivot[0], pivot[1]);
-    //j = fmax(pivot[0], pivot[1]);
+    /*i = fmin(pivot[0], pivot[1]);
+    j = fmax(pivot[0], pivot[1]);*/
     i = pivot[0];
     j = pivot[1];
     for (row = 0; row < N; row++){
@@ -320,7 +318,7 @@ double **Rotation_mat(double **S, int N){  /*returns P the Jacobi rotation matri
             if (row == column && row != pivot[0] && row != pivot[1]){ /* case of 1 */
                 P[row][column] = 1;
             }
-            if (row == column == pivot[0] || row == column == pivot[1]){    /* case of c*/
+            if (((row == column) && (row == pivot[0]))|| ((row == column) && (row == pivot[1]))){    /* case of c*/
                 P[row][column] = c;
             }
             if (row == i && column == N-1-i){  /*case of s  might not be max min*/
@@ -352,13 +350,7 @@ double **transpose(double **mat, int N){
 
 }
 
-void free_mat(double **mat, int m){
-    int row;
-    for (row = 0; row < m; row++){
-        free(mat[row]);
-    }
-    free(mat);
-}
+
 
 double off(double **mat, int N){
     double res;
@@ -429,12 +421,68 @@ void test_jacoby(){
     A = Jacoby(mat, 2);
     print_mat(A, 2);
     free_mat(A, 2);
-    //free_mat(mat);
+    /*free_mat(mat);*/
+}
+
+void test_wam(){
+    double **mat, **A;
+    mat = calloc(2, sizeof(double*));
+    mat[0] = calloc(2, sizeof(double));
+    mat[1] = calloc(2, sizeof(double));
+    mat[0][0] = 1;
+    mat[0][1] = 2;
+    mat[1][0] = 3;
+    mat[1][1] = 4;
+    printf("wam:\n");
+    A = wam(mat, 2);
+    print_mat(A, 2);
+    free_mat(A, 2);
+    free_mat(mat, 2);
+}
+
+void test_ddg(){
+    double **mat, **A, **B;
+    int i, j;
+    mat = calloc(3, sizeof(double*));
+    mat[0] = calloc(3, sizeof(double));
+    mat[1] = calloc(3, sizeof(double));
+    mat[2] = calloc(3, sizeof(double));
+    for (i = 0; i < 3; i++){
+        for (j = 0; j<3; j++){
+            mat[i][j] = i*3+j;
+        }
+    }
+    printf("ddg:\n");
+    B = ddg(mat, 3);
+    print_mat(B, 3);
+    printf("wam:\n");
+    A = wam(mat, 3);
+    print_mat(A, 3);
+    free_mat(B, 3);
+}
+
+void test_lnorm(){
+    double **mat, **A;
+    int i, j;
+    mat = calloc(3, sizeof(double*));
+    mat[0] = calloc(3, sizeof(double));
+    mat[1] = calloc(3, sizeof(double));
+    mat[2] = calloc(3, sizeof(double));
+    for (i = 0; i < 3; i++){
+        for (j = 0; j<3; j++){
+            mat[i][j] = i*3+j;
+        }
+    }
+
+    A = lnorm(mat, 3);
+    print_mat(A, 3);
+    free_mat(A, 3);
+    free_mat(mat, 3);
 }
 
 
 int main(){
-    test_jacoby();
+    test_lnorm();
     return 0;
 }
 
