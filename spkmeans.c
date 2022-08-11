@@ -3,9 +3,96 @@
 #include <math.h>
 #include <string.h>
 #include "spkmeans.h" /*our library*/
-
 /* check that we free al unnecessary memory */
 
+double *test_ctopy(){
+    double *lst;
+    lst = calloc(4, sizeof(double));
+    return lst;
+}
+
+int *mat_size(char *file_name){
+    int *res, rows, columns, i;
+    char line[50] = "";
+    FILE *fr;
+    rows = 0;
+    columns = 0;
+    fr = fopen(file_name, "r");
+    if(fr == NULL){
+        printf("Invalid Input!\n");
+        exit(1);
+    }
+    fgets(line, 50, fr);
+    rows++;
+    i = 0;
+    while(line[i] != '\0'){
+        if (line[i] == ','){
+            columns++;
+        }
+        i++;
+    }
+    columns++;
+
+
+    while (fgets(line, 50, fr) != NULL) {
+        rows += 1;
+    }
+
+    fclose(fr);
+
+    res = calloc(2, sizeof(int));
+
+    res[0] = rows;
+    res[1] = columns;
+    printf("rows: %i\n", rows);
+    printf("columns: %i\n", columns);
+    return res;
+}
+
+double **get_mat(char *file_name, int rows, int columns){
+    double **mat;
+    int i, j;
+    char line[50], *token;
+    FILE *fr;
+
+    mat = (double **)malloc(rows * sizeof(double*));
+    if(!mat){/*malloc failed*/
+        printf("An Error Has Occurred\n");
+        exit(1);
+    }
+
+    for(i=0; i < rows; i++){
+        mat[i] = (double *)malloc(columns * sizeof(double));
+        if(!mat[i]){/*malloc failed*/
+            printf("An Error Has Occurred\n");
+            exit(1);
+        }
+    }
+
+    fr = fopen(file_name, "r");
+    if(fr == NULL){
+        printf("Invalid Input!\n");
+        exit(1);
+    }
+    i = 0;
+
+     while (fgets(line, 50, fr) != NULL) {
+        j = 0;
+        token = strtok(line, ",");
+
+        while (token != NULL){
+        mat[i][j] = strtod(token, NULL);
+        token = strtok(NULL, ",");
+        j++;
+        }
+        i++;
+        
+    }
+    return mat;
+
+
+
+}
 
 void free_mat(double **mat, int m){
     int row;
@@ -50,26 +137,33 @@ double calc_exp_euc(double* x, double* y, int N){
     return res;
 }/*end of function calc_exp_euc*/
 
-double** wam(double** mat, int N){
-    
-    double** wei_adj_mat;
-    int i, j;
-    wei_adj_mat = (double **)malloc(N * sizeof(double*));
+/*double** wam(double** mat, int N)*/
+double** wam(char *file_name){
+    double** wei_adj_mat, **mat;
+    int i, j, rows, columns, *size;
+
+    size = mat_size(file_name);
+    rows = size[0];
+    columns = size[1];
+
+    mat = get_mat(file_name, rows, columns);
+
+    wei_adj_mat = (double **)malloc(rows * sizeof(double*));
     if(!wei_adj_mat){/*malloc failed*/
         printf("An Error Has Occurred\n");
         exit(1);
     }
 
-    for(i=0; i<N; i++){
-        wei_adj_mat[i] = (double *)malloc(N * sizeof(double));
+    for(i=0; i<rows; i++){
+        wei_adj_mat[i] = (double *)malloc(columns * sizeof(double));
         if(!wei_adj_mat){/*malloc failed*/
             printf("An Error Has Occurred\n");
             exit(1);
         }
     }
 
-    for(i=0; i<N; i++){
-        for(j=0; j<N; j++){
+    for(i=0; i<rows; i++){
+        for(j=0; j<columns; j++){
             if (i==j){
                 wei_adj_mat[i][j] = 0;
             }
@@ -77,7 +171,7 @@ double** wam(double** mat, int N){
                 wei_adj_mat[i][j] = wei_adj_mat[j][i];
             }
             else{
-                wei_adj_mat[i][j] = calc_exp_euc(mat[i], mat[j], N);
+                wei_adj_mat[i][j] = calc_exp_euc(mat[i], mat[j], rows);
             }
         }
     }
@@ -99,9 +193,12 @@ double sum_line(double* line, int N){
 }
 
 
-double** ddg(double** mat, int N){
+double** ddg(char *file_name){
     double** dia_deg_mat,** wei_adj_mat;
-    int i, j;
+    int i, j, N, *size;
+
+    size = mat_size(file_name);
+    N = size[0];
     dia_deg_mat = (double **)malloc(N * sizeof(double*));
     if(!dia_deg_mat){/*malloc failed*/
         printf("An Error Has Occurred\n");
@@ -116,7 +213,7 @@ double** ddg(double** mat, int N){
         }
     }
 
-    wei_adj_mat = wam(mat, N);
+    wei_adj_mat = wam(file_name);
     
     for(i=0; i<N; i++){
         for(j=0; j<N; j++){
@@ -207,13 +304,15 @@ double **mat_mult3(double **mat1, double ** mat2, double **mat3, int N){
 
 }
 
-double** lnorm(double** data, int N){
+double** lnorm(char* file_name){
     double** dia_deg_mat,** wei_adj_mat,** norm;
     double ** mult1,** mult2,** dia_deg_sqrt_mat;
-    int i, j;
+    int i, j, *size, N;
 
-    dia_deg_mat = ddg(data, N);
-    wei_adj_mat = wam(data, N);
+    size = mat_size(file_name);
+    N = size[0];
+    dia_deg_mat = ddg(file_name);
+    wei_adj_mat = wam(file_name);
     dia_deg_sqrt_mat = calc_mat_sqrt(dia_deg_mat, N);
 
     norm = (double **)malloc(N * sizeof(double*));
@@ -255,7 +354,6 @@ double** lnorm(double** data, int N){
     
 
 }
-
 
 int sign(double num){
     if (num >= 0){
@@ -423,7 +521,7 @@ void test_jacoby(){
     free_mat(A, 2);
     /*free_mat(mat);*/
 }
-
+/*
 void test_wam(){
     double **mat, **A;
     mat = calloc(2, sizeof(double*));
@@ -439,7 +537,8 @@ void test_wam(){
     free_mat(A, 2);
     free_mat(mat, 2);
 }
-
+*/
+/*
 void test_ddg(){
     double **mat, **A, **B;
     int i, j;
@@ -460,7 +559,8 @@ void test_ddg(){
     print_mat(A, 3);
     free_mat(B, 3);
 }
-
+*/
+/*
 void test_lnorm(){
     double **mat, **A;
     int i, j;
@@ -479,10 +579,16 @@ void test_lnorm(){
     free_mat(A, 3);
     free_mat(mat, 3);
 }
-
+*/
 
 int main(){
-    test_lnorm();
+    char *file_name;
+    int *size;
+    double **mat;
+    file_name = "tmpFile.txt";
+    size = mat_size(file_name);
+    mat = get_mat(file_name, size[0], size[1]);
+    print_mat(mat, size[0]);
     return 0;
 }
 

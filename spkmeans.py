@@ -1,5 +1,5 @@
-import numpy as np
-import pandas as pd
+#import numpy as np
+#import pandas as pd
 import sys
 import os
 import mykmeanssp as kpp
@@ -74,6 +74,9 @@ def cal_matrix(k, goal, file_name):
 if __name__ == '__main__':
 
     args = sys.argv  # args[0] = k, args[1] = goal, args[2] = file_name
+    a = kpp.test("tmpFile.txt")
+    print(a)
+    """
 
     try:
         if len(args) == 3:
@@ -87,3 +90,4 @@ if __name__ == '__main__':
             print("Invalid Input!\n")
     except:
         pass
+        """
