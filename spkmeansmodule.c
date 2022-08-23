@@ -10,12 +10,12 @@
 ============================ - END UP HERE - =================================
 ==============================================================================*/
 
-static PyObject* GetList(double **mat, int *mat_size)
-{
+static PyObject* GetMat(double **mat, int *size){
     int m,n, i, j;
-    m = mat_size[0];
-    n = mat_size[1];
-    PyObject* python_mat = PyList_New(m);
+    PyObject* python_mat;
+    m = size[0];
+    n = size[1];
+    python_mat = PyList_New(m);
     for (i = 0; i < m; ++i)
     {
         PyObject* python_row = PyList_New(n);
@@ -29,6 +29,51 @@ static PyObject* GetList(double **mat, int *mat_size)
     return python_mat;
 }
 
+double **c_mat(PyObject *float_mat){
+    PyObject *row, *item;
+    double **mat;
+    int rows, columns,i ,j;
+
+
+    rows = (int)PyObject_Length(float_mat);
+    if (rows < 0){
+        return NULL;
+    }
+    row = PyList_GetItem(float_mat, 0);
+    columns = (int)PyObject_Length(row);
+    mat = (double **) malloc(sizeof(double *) * rows);
+    for (i = 0; i < rows; i++){
+        mat[i] = (double *) malloc(sizeof(double) * columns);
+    }
+    for (i = 0; i < rows; i++){
+        row = PyList_GetItem(float_mat, i);
+        for (j = 0; j< columns; j++){
+            item = PyList_GetItem(row, j);
+            if (!PyFloat_Check(item))
+                mat[i][j] = 0.0;
+            mat[i][j] = PyFloat_AsDouble(item);
+        }
+    }
+
+    return mat;
+
+}
+
+int *mat_size(PyObject *float_mat){
+    int rows, columns, *size;
+    PyObject *row;
+
+    rows = (int)PyObject_Length(float_mat);
+    row = PyList_GetItem(float_mat, 0);
+    columns = (int)PyObject_Length(row);
+
+    size = (int *) malloc(sizeof(int) * 2);
+    size[0] = rows;
+    size[1] = columns;
+
+    return size;
+}
+
 /*
  * This actually defines the kmeans function using a wrapper C API function
  * The wrapping function needs a PyObject* self argument.
@@ -36,26 +81,109 @@ static PyObject* GetList(double **mat, int *mat_size)
  * It has input PyObject *args from Python.
  */
 static PyObject* wam_capi(PyObject *self, PyObject *args)
-{//should add the epsilon
-    //at the python code we should send the max_iter or the default value if we don't get one from the user
-    char *file_name;
+{
+    double **mat;
+    int *size, *res_size;
+    PyObject *float_mat;
 
+    if (!PyArg_ParseTuple(args, "O", &float_mat)){
+        return NULL;
+    }
 
+    mat = c_mat(float_mat);
+    size = mat_size(float_mat);
+    res_size = (int *) malloc(sizeof(int) * 2);
+    res_size[0] = size[0];
+    res_size[1] = size[0];
 
-    /* This parses the Python arguments into a double (d)  variable named z and int (i) variable named n*/
-    if(!PyArg_ParseTuple(args, "s", &file_name)) {
+    return GetMat(wam(mat, size[0], size[1]), res_size);
+}
+
+static PyObject* ddg_capi(PyObject *self, PyObject *args)
+{
+    double **mat;
+    int *size, *res_size;
+    PyObject *float_mat;
+
+    if (!PyArg_ParseTuple(args, "O", &float_mat)){
+        return NULL;
+    }
+
+    mat = c_mat(float_mat);
+    size = mat_size(float_mat);
+    res_size = (int *) malloc(sizeof(int) * 2);
+    res_size[0] = size[0];
+    res_size[1] = size[0];
+
+    return GetMat(ddg(mat, size[0], size[1]), res_size);
+}
+
+static PyObject* lnorm_capi(PyObject *self, PyObject *args)
+{
+    double **mat;
+    int *size, *res_size;
+    PyObject *float_mat;
+
+    if (!PyArg_ParseTuple(args, "O", &float_mat)){
+        return NULL;
+    }
+
+    mat = c_mat(float_mat);
+    size = mat_size(float_mat);
+    res_size = (int *) malloc(sizeof(int) * 2);
+    res_size[0] = size[0];
+    res_size[1] = size[0];
+
+    return GetMat(lnorm(mat, size[0], size[1]), res_size);
+}
+
+static PyObject* jacobi_capi(PyObject *self, PyObject *args)
+{
+    double **mat;
+    int *size;
+    PyObject *float_mat;
+
+    if (!PyArg_ParseTuple(args, "O", &float_mat)){
+        return NULL;
+    }
+
+    mat = c_mat(float_mat);
+    size = mat_size(float_mat);
+    size[0] = size[0] + 1;
+
+    return GetMat(jacobi(mat, size[1]), size);
+}
+
+static PyObject* spk_capi(PyObject *self, PyObject *args)
+{
+    double **mat, **res_mat;
+    int *size, *res_size;
+    int k, max_iter;
+    double epsilon;
+    PyObject *float_mat;
+
+    if(!PyArg_ParseTuple(args, "iidO", &k, &max_iter, &epsilon, &float_mat)) {
         return NULL; /* In the CPython API, a NULL value is never valid for a
                         PyObject* so it is used to signal that an error has occurred. */
     }
 
-/* This builds the answer ("d" = Convert a C double to a Python floating point number) back into a python object */
-    /*return Py_BuildValue("d", test_ctopy(d));*/ /*  Py_BuildValue(...) returns a PyObject*  */
+    mat = c_mat(float_mat);
+    size = mat_size(float_mat);
 
-    return GetList(wam(file_name), mat_size(file_name));
+    if (k == 0){
+        k = heuristic(mat, size[0], size[1]);
+    }
+    res_mat = spk(mat, size[0], size[1], k, max_iter, epsilon);
+
+    res_size = (int *) malloc(sizeof(int) * 2);
+    res_size[0] = k;
+    res_size[1] = size[1];
+
+    return GetMat(res_mat, res_size);
+
+    //return Py_BuildValue("i", 0);
+
 }
-
-
-
 
 
 /*
@@ -63,10 +191,27 @@ static PyObject* wam_capi(PyObject *self, PyObject *args)
  * We will use it in the next structure
  */
 static PyMethodDef capiMethods[] = {
-    {"test",                   /* the Python method name that will be used */
-      (PyCFunction) test_capi, /* the C-function that implements the Python function and returns static PyObject*  */
+    {"wam",                   /* the Python method name that will be used */
+      (PyCFunction) wam_capi, /* the C-function that implements the Python function and returns static PyObject*  */
       METH_VARARGS,           /* flags indicating parametersaccepted for this function */
       PyDoc_STR("A geometric series up to n. sum_up_to_n(z^n)")}, /*  The docstring for the function *///NEED TO CHANGE DESCRIPTION
+    {"ddg",                   /* the Python method name that will be used */
+      (PyCFunction) ddg_capi, /* the C-function that implements the Python function and returns static PyObject*  */
+      METH_VARARGS,           /* flags indicating parametersaccepted for this function */
+      PyDoc_STR("A geometric series up to n. sum_up_to_n(z^n)")}, /*  The docstring for the function *///NEED TO CHANGE DESCRIPTION
+    {"lnorm",                   /* the Python method name that will be used */
+      (PyCFunction) lnorm_capi, /* the C-function that implements the Python function and returns static PyObject*  */
+      METH_VARARGS,           /* flags indicating parametersaccepted for this function */
+      PyDoc_STR("A geometric series up to n. sum_up_to_n(z^n)")}, /*  The docstring for the function *///NEED TO CHANGE DESCRIPTION
+    {"jacobi",                   /* the Python method name that will be used */
+      (PyCFunction) jacobi_capi, /* the C-function that implements the Python function and returns static PyObject*  */
+      METH_VARARGS,           /* flags indicating parametersaccepted for this function */
+      PyDoc_STR("A geometric series up to n. sum_up_to_n(z^n)")}, /*  The docstring for the function *///NEED TO CHANGE DESCRIPTION
+    {"spk",                   /* the Python method name that will be used */
+      (PyCFunction) spk_capi, /* the C-function that implements the Python function and returns static PyObject*  */
+      METH_VARARGS,           /* flags indicating parametersaccepted for this function */
+      PyDoc_STR("A geometric series up to n. sum_up_to_n(z^n)")}, /*  The docstring for the function *///NEED TO CHANGE DESCRIPTION
+
     {NULL, NULL, 0, NULL}     /* The last entry must be all NULL as shown to act as a
                                  sentinel. Python looks for this entry to know that all
                                  of the functions for the module have been defined. */

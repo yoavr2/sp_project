@@ -74,7 +74,12 @@ def cal_matrix(k, goal, file_name):
 if __name__ == '__main__':
 
     args = sys.argv  # args[0] = k, args[1] = goal, args[2] = file_name
-    a = kpp.test("tmpFile.txt")
+    mat = [[],[]]
+    mat[0] = [1,2,3]
+    mat[1] = [4,5, 6]
+    #mat[2] = [1, 1, 1]
+    a = kpp.spk(0, 100, 0.0001, mat)
+    print("mat: ")
     print(a)
     """
 

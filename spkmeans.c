@@ -5,12 +5,75 @@
 #include "spkmeans.h" /*our library*/
 /* check that we free al unnecessary memory */
 
+int find_k(double **mat, int N){
+    double *delta, *eigenvalues;
+    double max_val;
+    int res, i;
+    eigenvalues = mat[0];
+
+    delta = calloc(N-1, sizeof(double));
+    for (i = 0; i < N-1; i++){
+        delta[i] = fabs(eigenvalues[i] - eigenvalues[i+1]);
+    }
+
+    max_val = delta[0];
+    res = 0;
+    for (i = 0; i < N-1; i++){
+        if (delta[i] > max_val){
+            max_val = delta[i];
+            res = i;
+        }
+    }
+    return res + 1;
+}
+double **new_mat(int N){
+    double **mat;
+    int i;
+    mat = calloc(N, sizeof(double*));
+    if(!mat){/*calloc failed*/
+        printf("An Error Has Occurred\n");
+        exit(1);
+    }
+
+    for(i=0; i<N; i++){
+        mat[i] = calloc(N, sizeof(double));
+        if(!mat){/*calloc failed*/
+            printf("An Error Has Occurred\n");
+            exit(1);
+        }
+    }
+    return mat;
+}
+
+double **I_mat(int N){
+    double **mat;
+    int i;
+    mat = new_mat(N);
+    for (i = 0; i < N; i++){
+        mat[i][i] = 1;
+    }
+    return mat;
+}
+
+double *get_eigen(double **mat, int N){
+    double *eignvalues;
+    int i;
+    eignvalues = calloc(N, sizeof(double));
+    for (i = 0; i < N; i++){
+        eignvalues[i] = mat[i][i];
+    }
+    return eignvalues;
+}
+
+
 double *test_ctopy(){
     double *lst;
     lst = calloc(4, sizeof(double));
     return lst;
 }
 
+
+/*
 int *mat_size(char *file_name){
     int *res, rows, columns, i;
     char line[50] = "";
@@ -48,7 +111,7 @@ int *mat_size(char *file_name){
     printf("columns: %i\n", columns);
     return res;
 }
-
+*/
 double **get_mat(char *file_name, int rows, int columns){
     double **mat;
     int i, j;
@@ -127,43 +190,36 @@ double calc_dist(double *x, double *y, int dim){/*calculate (x-y)^2*/
 
 }/*end of function calc_dist*/
 
-double calc_exp_euc(double* x, double* y, int N){
+double calc_exp_euc(double* x, double* y, int dim){
     double euc, res;
 
-    euc = calc_dist(x, y, N);
+    euc = calc_dist(x, y, dim);
     res = sqrt(fabs(euc));
     res = exp(res*(-1.0/2.0));
     
     return res;
 }/*end of function calc_exp_euc*/
 
-/*double** wam(double** mat, int N)*/
-double** wam(char *file_name){
-    double** wei_adj_mat, **mat;
-    int i, j, rows, columns, *size;
+double** wam(double **mat, int N, int dim){
+    double** wei_adj_mat;
+    int i, j, rows, columns;
 
-    size = mat_size(file_name);
-    rows = size[0];
-    columns = size[1];
-
-    mat = get_mat(file_name, rows, columns);
-
-    wei_adj_mat = (double **)malloc(rows * sizeof(double*));
+    wei_adj_mat = (double **)malloc(N * sizeof(double*));
     if(!wei_adj_mat){/*malloc failed*/
         printf("An Error Has Occurred\n");
         exit(1);
     }
 
-    for(i=0; i<rows; i++){
-        wei_adj_mat[i] = (double *)malloc(columns * sizeof(double));
+    for(i=0; i<N; i++){
+        wei_adj_mat[i] = (double *)malloc(N * sizeof(double));
         if(!wei_adj_mat){/*malloc failed*/
             printf("An Error Has Occurred\n");
             exit(1);
         }
     }
 
-    for(i=0; i<rows; i++){
-        for(j=0; j<columns; j++){
+    for(i=0; i<N; i++){
+        for(j=0; j<N; j++){
             if (i==j){
                 wei_adj_mat[i][j] = 0;
             }
@@ -171,7 +227,7 @@ double** wam(char *file_name){
                 wei_adj_mat[i][j] = wei_adj_mat[j][i];
             }
             else{
-                wei_adj_mat[i][j] = calc_exp_euc(mat[i], mat[j], rows);
+                wei_adj_mat[i][j] = calc_exp_euc(mat[i], mat[j], dim);
             }
         }
     }
@@ -193,27 +249,25 @@ double sum_line(double* line, int N){
 }
 
 
-double** ddg(char *file_name){
+double** ddg(double **mat, int N, int dim){
     double** dia_deg_mat,** wei_adj_mat;
-    int i, j, N, *size;
+    int i, j;
 
-    size = mat_size(file_name);
-    N = size[0];
     dia_deg_mat = (double **)malloc(N * sizeof(double*));
-    if(!dia_deg_mat){/*malloc failed*/
+    if(!dia_deg_mat){
         printf("An Error Has Occurred\n");
         exit(1);
     }
 
     for(i=0; i<N; i++){
         dia_deg_mat[i] = (double *)malloc(N * sizeof(double));
-        if(!dia_deg_mat){/*malloc failed*/
+        if(!dia_deg_mat){
             printf("An Error Has Occurred\n");
             exit(1);
         }
     }
 
-    wei_adj_mat = wam(file_name);
+    wei_adj_mat = wam(mat, N, dim);
     
     for(i=0; i<N; i++){
         for(j=0; j<N; j++){
@@ -304,26 +358,24 @@ double **mat_mult3(double **mat1, double ** mat2, double **mat3, int N){
 
 }
 
-double** lnorm(char* file_name){
+double** lnorm(double **mat, int N, int dim){
     double** dia_deg_mat,** wei_adj_mat,** norm;
     double ** mult1,** mult2,** dia_deg_sqrt_mat;
-    int i, j, *size, N;
+    int i, j;
 
-    size = mat_size(file_name);
-    N = size[0];
-    dia_deg_mat = ddg(file_name);
-    wei_adj_mat = wam(file_name);
+    dia_deg_mat = ddg(mat, N, dim);
+    wei_adj_mat = wam(mat, N, dim);
     dia_deg_sqrt_mat = calc_mat_sqrt(dia_deg_mat, N);
 
     norm = (double **)malloc(N * sizeof(double*));
-    if(!norm){/*malloc failed*/
+    if(!norm){
         printf("An Error Has Occurred\n");
         exit(1);
     }
 
     for(i=0; i<N; i++){
         norm[i] = (double *)malloc(N * sizeof(double));
-        if(!norm){/*malloc failed*/
+        if(!norm){
             printf("An Error Has Occurred\n");
             exit(1);
         }
@@ -338,7 +390,7 @@ double** lnorm(char* file_name){
                 if(i==j){
                     norm[i][j] = 1 - mult2[i][j];
                 }
-                else{/* j != i */
+                else{
                     norm[i][j] = 0 - mult2[i][j];
                 }
             }
@@ -478,19 +530,22 @@ void print_mat(double **mat, int N){
 
 
 
-double **Jacoby(double **A, int N){
+double **jacobi(double **A, int N){
     double eps, dif, offA, offB;
-    double **P, **P_t, **B;
-    int counter;
+    double **P, **P_t, **B, **V, **res;
+    double *eigenvalues;
+    int counter, i;
 
 
     eps = 1.0 * pow(10, -5);
     counter = 0;
     dif = 10;
     offA = off(A, N);
+    V = I_mat(N);
 
     while (dif > eps && counter < 100){
         P = Rotation_mat(A, N);
+        V = mat_mult(V, P, N);
         P_t = transpose(P, N);
         B = mat_mult3(P_t, A, P, N);
         offB = off(B, N);
@@ -500,12 +555,42 @@ double **Jacoby(double **A, int N){
         offA = offB;
         counter += 1;
     }
+    eigenvalues = get_eigen(A, N);
+    res = calloc(N+1, sizeof(double*));
+    for (i = 0; i < N+1; i++){
+        res[i] = calloc(N, sizeof(double));
+    }
+    res[0] = eigenvalues;
+    for (i = 0; i < N; i++){
+        res[i+1] = V[i];
+    }
+    free_mat(V, N);
 
-    
-    return A;
-    
+    return res;
+
 }
 
+int heuristic(double **mat, int N, int dim){
+    double **lnorm_mat, **jacobi_mat;
+    int k;
+
+    lnorm_mat = lnorm(mat, N, dim);
+    jacobi_mat = jacobi(lnorm_mat, N);
+    k = find_k(jacobi_mat, N);
+    return k;
+}
+
+double **spk(double **mat, int N, int dim, int k, int max_iter, int eps){
+    double **res;
+    printf("k = %i",k);
+
+    res = calloc(2, sizeof(double*));
+    res[0] = calloc(2, sizeof(double));
+    res[1] = calloc(2, sizeof(double));
+    return res;
+}
+
+/*
 void test_jacoby(){
     double **mat, **A;
     mat = calloc(2, sizeof(double*));
@@ -519,7 +604,12 @@ void test_jacoby(){
     A = Jacoby(mat, 2);
     print_mat(A, 2);
     free_mat(A, 2);
-    /*free_mat(mat);*/
+}
+*/
+double **test_pytoc(double **mat, int N){
+    print_mat(mat, N);
+    //free_mat(mat, N);
+    return mat;
 }
 /*
 void test_wam(){
@@ -582,6 +672,7 @@ void test_lnorm(){
 */
 
 int main(){
+/*
     char *file_name;
     int *size;
     double **mat;
@@ -589,6 +680,7 @@ int main(){
     size = mat_size(file_name);
     mat = get_mat(file_name, size[0], size[1]);
     print_mat(mat, size[0]);
+    */
     return 0;
 }
 
