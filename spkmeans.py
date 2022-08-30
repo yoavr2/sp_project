@@ -74,11 +74,29 @@ def cal_matrix(k, goal, file_name):
 if __name__ == '__main__':
 
     args = sys.argv  # args[0] = k, args[1] = goal, args[2] = file_name
-    mat = [[],[]]
-    mat[0] = [1,2,3]
-    mat[1] = [4,5, 6]
-    #mat[2] = [1, 1, 1]
-    a = kpp.spk(0, 100, 0.0001, mat)
+    try:
+        fr = open("tmpFile.txt", "r")
+    except OSError:
+        print("Invalid Input!\n")
+
+    try:
+        inp_txt = fr.read()
+        data_points = inp_txt.split("\n")
+        data_num = len(data_points)
+        tmp = data_points[0].split(",")
+        dimension = len(tmp)
+    except:
+        print("An Error Has Occurred\n")
+
+    data_in_float = [[float(x) for x in data_points[i].split(",")] for i in range(data_num-1)]
+
+    mat = [[], []]
+    mat[0] = [1, 2, 3]
+    mat[1] = [4, 5, 6]
+    # mat[2] = [1, 1, 1]
+    #print(data_in_float)
+    #a = kpp.heuristic(data_in_float)
+    a = kpp.jacobi(data_in_float)
     print("mat: ")
     print(a)
     """

@@ -59,7 +59,7 @@ double **c_mat(PyObject *float_mat){
 
 }
 
-int *mat_size(PyObject *float_mat){
+int *c_mat_size(PyObject *float_mat){
     int rows, columns, *size;
     PyObject *row;
 
@@ -91,7 +91,7 @@ static PyObject* wam_capi(PyObject *self, PyObject *args)
     }
 
     mat = c_mat(float_mat);
-    size = mat_size(float_mat);
+    size = c_mat_size(float_mat);
     res_size = (int *) malloc(sizeof(int) * 2);
     res_size[0] = size[0];
     res_size[1] = size[0];
@@ -110,7 +110,7 @@ static PyObject* ddg_capi(PyObject *self, PyObject *args)
     }
 
     mat = c_mat(float_mat);
-    size = mat_size(float_mat);
+    size = c_mat_size(float_mat);
     res_size = (int *) malloc(sizeof(int) * 2);
     res_size[0] = size[0];
     res_size[1] = size[0];
@@ -129,7 +129,7 @@ static PyObject* lnorm_capi(PyObject *self, PyObject *args)
     }
 
     mat = c_mat(float_mat);
-    size = mat_size(float_mat);
+    size = c_mat_size(float_mat);
     res_size = (int *) malloc(sizeof(int) * 2);
     res_size[0] = size[0];
     res_size[1] = size[0];
@@ -148,10 +148,29 @@ static PyObject* jacobi_capi(PyObject *self, PyObject *args)
     }
 
     mat = c_mat(float_mat);
-    size = mat_size(float_mat);
+    size = c_mat_size(float_mat);
     size[0] = size[0] + 1;
 
     return GetMat(jacobi(mat, size[1]), size);
+}
+
+static PyObject* heuristic_capi(PyObject *self, PyObject *args){
+    int k;
+    double **mat;
+    int *size;
+    PyObject *float_mat;
+
+    if(!PyArg_ParseTuple(args, "O", &float_mat)) {
+        return NULL; /* In the CPython API, a NULL value is never valid for a
+                        PyObject* so it is used to signal that an error has occurred. */
+    }
+
+    mat = c_mat(float_mat);
+    size = c_mat_size(float_mat);
+    k = heuristic(mat, size[0], size[1]);
+
+    return Py_BuildValue("i", k);
+
 }
 
 static PyObject* spk_capi(PyObject *self, PyObject *args)
@@ -168,7 +187,7 @@ static PyObject* spk_capi(PyObject *self, PyObject *args)
     }
 
     mat = c_mat(float_mat);
-    size = mat_size(float_mat);
+    size = c_mat_size(float_mat);
 
     if (k == 0){
         k = heuristic(mat, size[0], size[1]);
@@ -207,10 +226,11 @@ static PyMethodDef capiMethods[] = {
       (PyCFunction) jacobi_capi, /* the C-function that implements the Python function and returns static PyObject*  */
       METH_VARARGS,           /* flags indicating parametersaccepted for this function */
       PyDoc_STR("A geometric series up to n. sum_up_to_n(z^n)")}, /*  The docstring for the function *///NEED TO CHANGE DESCRIPTION
-    {"spk",                   /* the Python method name that will be used */
-      (PyCFunction) spk_capi, /* the C-function that implements the Python function and returns static PyObject*  */
+    {"heuristic",                   /* the Python method name that will be used */
+      (PyCFunction) heuristic_capi, /* the C-function that implements the Python function and returns static PyObject*  */
       METH_VARARGS,           /* flags indicating parametersaccepted for this function */
       PyDoc_STR("A geometric series up to n. sum_up_to_n(z^n)")}, /*  The docstring for the function *///NEED TO CHANGE DESCRIPTION
+
 
     {NULL, NULL, 0, NULL}     /* The last entry must be all NULL as shown to act as a
                                  sentinel. Python looks for this entry to know that all

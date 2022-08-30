@@ -5,11 +5,30 @@
 #include "spkmeans.h" /*our library*/
 /* check that we free al unnecessary memory */
 
+/*ENUM*/
+enum goal{wam, ddg, lnorm, jacobi};
+/*ENUM*/
+
+static int compare (const void * a, const void * b)
+{
+  if (*(double*)a > *(double*)b) return -1;
+  else if (*(double*)a < *(double*)b) return 1;
+  else return 0;
+}
+
 int find_k(double **mat, int N){
     double *delta, *eigenvalues;
     double max_val;
     int res, i;
     eigenvalues = mat[0];
+    qsort(eigenvalues, N, sizeof(double), compare);
+    printf("eigenvalues: \n");
+    for (i = 0; i < N; i++){
+        printf("%f, ", eigenvalues[i]);
+    }
+    printf("\n");
+
+
 
     delta = calloc(N-1, sizeof(double));
     for (i = 0; i < N-1; i++){
@@ -18,7 +37,7 @@ int find_k(double **mat, int N){
 
     max_val = delta[0];
     res = 0;
-    for (i = 0; i < N-1; i++){
+    for (i = 0; i < N/2; i++){
         if (delta[i] > max_val){
             max_val = delta[i];
             res = i;
@@ -26,6 +45,47 @@ int find_k(double **mat, int N){
     }
     return res + 1;
 }
+
+int calcLineLen(char *input_file){
+    FILE *fr = fopen(input_file, "r");
+    int line_len = 0;
+    int max_line = -1;
+
+    if(fr == NULL){
+        printf("Invalid Input!\n");
+        exit(1);
+    }
+
+    while(!(feof(fr))){/*search the maximum line len */
+
+        line_len = 0;
+
+        while(fgetc(fr) != '\n'){
+
+        line_len++;
+        if(feof(fr)){
+            break;
+        }
+
+        }/*end of inner while*/
+
+        if(max_line < line_len){
+            max_line = line_len;
+        }
+
+        /*if(feof(fr)){
+            break;
+        }*/
+
+    }/*end of while*/
+
+    max_line++;
+
+    return max_line;
+
+}/*end of function calcLineLen*/
+
+
 double **new_mat(int N){
     double **mat;
     int i;
@@ -73,7 +133,7 @@ double *test_ctopy(){
 }
 
 
-/*
+
 int *mat_size(char *file_name){
     int *res, rows, columns, i;
     char line[50] = "";
@@ -111,13 +171,16 @@ int *mat_size(char *file_name){
     printf("columns: %i\n", columns);
     return res;
 }
-*/
+
 double **get_mat(char *file_name, int rows, int columns){
     double **mat;
     int i, j;
+    int max_chars_in_line;
     char line[50], *token;
     FILE *fr;
 
+    /*max_chars_in_line = calcLineLen( file_name);
+    line = (char *)malloc(max_chars_in_line * sizeof(char));*/
     mat = (double **)malloc(rows * sizeof(double*));
     if(!mat){/*malloc failed*/
         printf("An Error Has Occurred\n");
@@ -139,18 +202,21 @@ double **get_mat(char *file_name, int rows, int columns){
     }
     i = 0;
 
-     while (fgets(line, 50, fr) != NULL) {
+    while (fgets(line, 50, fr) != NULL) {
         j = 0;
         token = strtok(line, ",");
 
         while (token != NULL){
-        mat[i][j] = strtod(token, NULL);
-        token = strtok(NULL, ",");
-        j++;
+            mat[i][j] = strtod(token, NULL);
+            token = strtok(NULL, ",");
+            j++;
         }
         i++;
-        
+
     }
+
+    /*free(line);*/
+
     return mat;
 
 
@@ -172,7 +238,7 @@ double calc_dist(double *x, double *y, int dim){/*calculate (x-y)^2*/
     int i;
     sum = 0.0;
     tmp = 0.0;
-    
+
 
 
     for(i = 0; i<dim; i++){/*calculate (x-centroid)^2 for each coordinate and sum them all*/
@@ -196,13 +262,13 @@ double calc_exp_euc(double* x, double* y, int dim){
     euc = calc_dist(x, y, dim);
     res = sqrt(fabs(euc));
     res = exp(res*(-1.0/2.0));
-    
+
     return res;
 }/*end of function calc_exp_euc*/
 
-double** wam(double **mat, int N, int dim){
+double** wam_func(double **mat, int N, int dim){/*tested on input, worked right*/
     double** wei_adj_mat;
-    int i, j, rows, columns;
+    int i, j;
 
     wei_adj_mat = (double **)malloc(N * sizeof(double*));
     if(!wei_adj_mat){/*malloc failed*/
@@ -233,14 +299,14 @@ double** wam(double **mat, int N, int dim){
     }
 
     return wei_adj_mat;
-        
-}/*end of function wam*/
+
+}/*end of function wam_func*/
 
 double sum_line(double* line, int N){
     int i;
     double sum;
     sum = 0.0;
-    
+
     for(i=0; i<N; i++){
         sum += line[i];
     }
@@ -249,7 +315,7 @@ double sum_line(double* line, int N){
 }
 
 
-double** ddg(double **mat, int N, int dim){
+double** ddg_func(double **mat, int N, int dim){/*tested on imput, works right*/
     double** dia_deg_mat,** wei_adj_mat;
     int i, j;
 
@@ -267,8 +333,8 @@ double** ddg(double **mat, int N, int dim){
         }
     }
 
-    wei_adj_mat = wam(mat, N, dim);
-    
+    wei_adj_mat = wam_func(mat, N, dim);
+
     for(i=0; i<N; i++){
         for(j=0; j<N; j++){
             if (i != j){
@@ -281,7 +347,7 @@ double** ddg(double **mat, int N, int dim){
     }
     free_mat(wei_adj_mat, N);
     return dia_deg_mat;
-}/*end of function ddg*/
+}/*end of function ddg_func*/
 
 double** calc_mat_sqrt(double **dia_deg_mat, int N){
     double **dia_deg_mat_sqrt;
@@ -338,9 +404,9 @@ double** mat_mult(double** mat1, double** mat2, int N){
      for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             rslt[i][j] = 0;
- 
+
             for (k = 0; k < N; k++) {
-                
+
                 rslt[i][j] += mat1[i][k] * mat2[k][j];
             }
         }
@@ -350,7 +416,7 @@ double** mat_mult(double** mat1, double** mat2, int N){
 
 double **mat_mult3(double **mat1, double ** mat2, double **mat3, int N){
     double **res, **mult1;
-    
+
     mult1 = mat_mult(mat1, mat2, N);
     res = mat_mult(mult1, mat3, N);
 
@@ -358,13 +424,13 @@ double **mat_mult3(double **mat1, double ** mat2, double **mat3, int N){
 
 }
 
-double** lnorm(double **mat, int N, int dim){
+double** lnorm_func(double **mat, int N, int dim){
     double** dia_deg_mat,** wei_adj_mat,** norm;
     double ** mult1,** mult2,** dia_deg_sqrt_mat;
     int i, j;
 
-    dia_deg_mat = ddg(mat, N, dim);
-    wei_adj_mat = wam(mat, N, dim);
+    dia_deg_mat = ddg_func(mat, N, dim);
+    wei_adj_mat = wam_func(mat, N, dim);
     dia_deg_sqrt_mat = calc_mat_sqrt(dia_deg_mat, N);
 
     norm = (double **)malloc(N * sizeof(double*));
@@ -403,7 +469,7 @@ double** lnorm(double **mat, int N, int dim){
     free(dia_deg_sqrt_mat);
 
     return norm;
-    
+
 
 }
 
@@ -419,7 +485,7 @@ int *find_pivot(double **mat, int N){  /* mat is NxN */
     double max_val = mat[0][1];
     int *res = calloc(2, sizeof(int));
     i = 0;
-    j = 0;
+    j = 1;
     for (row = 0; row < N; row++){
         for (column = 0; column < N; column++){
             if (row != column && fabs(mat[row][column]) >= max_val){
@@ -471,10 +537,10 @@ double **Rotation_mat(double **S, int N){  /*returns P the Jacobi rotation matri
             if (((row == column) && (row == pivot[0]))|| ((row == column) && (row == pivot[1]))){    /* case of c*/
                 P[row][column] = c;
             }
-            if (row == i && column == N-1-i){  /*case of s  might not be max min*/
+            if (row == i && column == j){/*N-1-i*/  /*case of s  might not be max min*/
                 P[row][column] = s;
             }
-            if (row == j && column == N-1-j){   /*case of -s    might not be max min*/
+            if (row == j && column == i){/*N-1-j*/   /*case of -s    might not be max min*/
                 P[row][column] = -1*s;
             }
 
@@ -530,7 +596,7 @@ void print_mat(double **mat, int N){
 
 
 
-double **jacobi(double **A, int N){
+double **jacobi_func(double **A, int N){/*tested on input, works right*/
     double eps, dif, offA, offB;
     double **P, **P_t, **B, **V, **res;
     double *eigenvalues;
@@ -547,7 +613,7 @@ double **jacobi(double **A, int N){
         P = Rotation_mat(A, N);
         V = mat_mult(V, P, N);
         P_t = transpose(P, N);
-        B = mat_mult3(P_t, A, P, N);
+        B = mat_mult3(P_t, A, P, N);/* it's A' */
         offB = off(B, N);
         dif = fabs(offA - offB);
         free_mat(A, N);
@@ -574,8 +640,10 @@ int heuristic(double **mat, int N, int dim){
     double **lnorm_mat, **jacobi_mat;
     int k;
 
-    lnorm_mat = lnorm(mat, N, dim);
-    jacobi_mat = jacobi(lnorm_mat, N);
+    lnorm_mat = lnorm_func(mat, N, dim);
+    printf("finished lnorm_func in heuristic\n");
+    jacobi_mat = jacobi_func(lnorm_mat, N);
+    printf("finished jacobi_func in heuristic\n");
     k = find_k(jacobi_mat, N);
     return k;
 }
@@ -590,28 +658,30 @@ double **spk(double **mat, int N, int dim, int k, int max_iter, int eps){
     return res;
 }
 
-/*
+
 void test_jacoby(){
     double **mat, **A;
-    mat = calloc(2, sizeof(double*));
-    mat[0] = calloc(2, sizeof(double));
-    mat[1] = calloc(2, sizeof(double));
-    mat[0][0] = 1;
-    mat[0][1] = 2;
-    mat[1][0] = 3;
-    mat[1][1] = 4;
+    int *size;
+    char *file_name;
 
-    A = Jacoby(mat, 2);
-    print_mat(A, 2);
-    free_mat(A, 2);
+    file_name = "jacobi_test.txt";
+    size = mat_size(file_name);
+    mat = get_mat(file_name, size[0], size[1]);
+
+    printf("original mat:\n");
+    print_mat(mat, size[0]);
+
+    A = jacobi_func(mat, size[0]);
+    printf("Jacobi res:\n");
+    print_mat(A, size[0]+1);
 }
-*/
+
 double **test_pytoc(double **mat, int N){
     print_mat(mat, N);
     //free_mat(mat, N);
     return mat;
 }
-/*
+
 void test_wam(){
     double **mat, **A;
     mat = calloc(2, sizeof(double*));
@@ -621,13 +691,13 @@ void test_wam(){
     mat[0][1] = 2;
     mat[1][0] = 3;
     mat[1][1] = 4;
-    printf("wam:\n");
-    A = wam(mat, 2);
+    printf("wam_func:\n");
+    A = wam_func(mat, 2, 2);
     print_mat(A, 2);
     free_mat(A, 2);
     free_mat(mat, 2);
 }
-*/
+
 /*
 void test_ddg(){
     double **mat, **A, **B;
@@ -641,11 +711,11 @@ void test_ddg(){
             mat[i][j] = i*3+j;
         }
     }
-    printf("ddg:\n");
-    B = ddg(mat, 3);
+    printf("ddg_func:\n");
+    B = ddg_func(mat, 3);
     print_mat(B, 3);
-    printf("wam:\n");
-    A = wam(mat, 3);
+    printf("wam_func:\n");
+    A = wam_func(mat, 3);
     print_mat(A, 3);
     free_mat(B, 3);
 }
@@ -664,23 +734,101 @@ void test_lnorm(){
         }
     }
 
-    A = lnorm(mat, 3);
+    A = lnorm_func(mat, 3);
     print_mat(A, 3);
     free_mat(A, 3);
     free_mat(mat, 3);
 }
 */
 
+/*int numbersOfLines(char *input_file, int line_len){
+
+    int num_of_lines = 0;
+
+    char *buff;
+
+    FILE *fr = fopen(input_file, "r");
+
+    if(fr == NULL){
+        printf("Invalid Input!\n");
+        exit(1);
+    }
+
+    buff = (char *)calloc(line_len+1, sizeof(char));
+
+    if(!buff){
+        printf("An Error Has Occurred\n");
+        exit(1);
+    }
+
+    while(fscanf(fr, "%s", buff ) == 1){/*count the numbers of lines*/
+
+        /*num_of_lines++;
+
+    }/*end of while*/
+
+    /*free(buff);
+
+    return num_of_lines;
+
+    return -1;*/
+
+/*}/*end of function numbersOfLines*/
+
+
+
+double ** file_to_mat(char* filename){
+    FILE *fr;
+    int *row_and_col;
+    double **res_mat;
+    int i;
+
+    row_and_col = mat_size(filename);
+
+    int num_of_cord = row_and_col[1];
+    int data_num = row_and_col[0];
+
+    res_mat = get_mat(filename, data_num, num_of_cord);
+    return res_mat;
+}
+
+
+
 int main(){
-/*
+
     char *file_name;
-    int *size;
-    double **mat;
+    int *size, k;
+    double **mat, **jacobi_mat, **wam_mat, **ddg_mat, **ddg_sqrt;
     file_name = "tmpFile.txt";
     size = mat_size(file_name);
     mat = get_mat(file_name, size[0], size[1]);
-    print_mat(mat, size[0]);
-    */
+
+    wam_mat = wam_func(mat, size[0], size[1]);
+    ddg_mat = ddg_func(mat, size[0], size[1]);
+    ddg_sqrt = calc_mat_sqrt(ddg_mat, size[0]);
+    /*k = heuristic(mat, size[0], size[1]);*/
+
+    //printf("k = %d", k);
+    /*test_wam();*/
+
+    //jacobi_mat = jacobi_func(mat, size[0]);
+    printf("wam_mat: \n");
+    print_mat(wam_mat, size[0]);
+
+    printf("\n");
+
+    printf("ddg_mat: \n");
+    print_mat(ddg_mat, size[0]);
+
+    printf("\n");
+
+    printf("ddg_sqrt: \n");
+    print_mat(ddg_sqrt, size[0]);
+
+    printf("\n");
+
+    test_jacoby();
+
     return 0;
 }
 
