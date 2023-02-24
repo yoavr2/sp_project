@@ -1,4 +1,5 @@
-#include "spkmeans.c"
+//#include "spkmeans.c"
+#include "spkmeans.h"
 #define PY_SSIZE_T_CLEAN  /* For all # variants of unit formats (s#, y#, etc.) use Py_ssize_t rather than int. */
 #include <Python.h>       /* MUST include <Python.h>, this implies inclusion of the following standard headers:
                              <stdio.h>, <string.h>, <errno.h>, <limits.h>, <assert.h> and <stdlib.h> (if available). */
@@ -96,7 +97,7 @@ static PyObject* wam_capi(PyObject *self, PyObject *args)
     res_size[0] = size[0];
     res_size[1] = size[0];
 
-    return GetMat(wam(mat, size[0], size[1]), res_size);
+    return GetMat(wam_func(mat, size[0], size[1]), res_size);
 }
 
 static PyObject* ddg_capi(PyObject *self, PyObject *args)
@@ -115,7 +116,7 @@ static PyObject* ddg_capi(PyObject *self, PyObject *args)
     res_size[0] = size[0];
     res_size[1] = size[0];
 
-    return GetMat(ddg(mat, size[0], size[1]), res_size);
+    return GetMat(ddg_func(mat, size[0], size[1]), res_size);
 }
 
 static PyObject* lnorm_capi(PyObject *self, PyObject *args)
@@ -134,7 +135,7 @@ static PyObject* lnorm_capi(PyObject *self, PyObject *args)
     res_size[0] = size[0];
     res_size[1] = size[0];
 
-    return GetMat(lnorm(mat, size[0], size[1]), res_size);
+    return GetMat(lnorm_func(mat, size[0], size[1]), res_size);
 }
 
 static PyObject* jacobi_capi(PyObject *self, PyObject *args)
@@ -151,7 +152,7 @@ static PyObject* jacobi_capi(PyObject *self, PyObject *args)
     size = c_mat_size(float_mat);
     size[0] = size[0] + 1;
 
-    return GetMat(jacobi(mat, size[1]), size);
+    return GetMat(jacobi_func(mat, size[1]), size);
 }
 
 static PyObject* heuristic_capi(PyObject *self, PyObject *args){
@@ -230,6 +231,11 @@ static PyMethodDef capiMethods[] = {
       (PyCFunction) heuristic_capi, /* the C-function that implements the Python function and returns static PyObject*  */
       METH_VARARGS,           /* flags indicating parametersaccepted for this function */
       PyDoc_STR("A geometric series up to n. sum_up_to_n(z^n)")}, /*  The docstring for the function *///NEED TO CHANGE DESCRIPTION
+    {"spk",                   /* the Python method name that will be used */
+      (PyCFunction) spk_capi, /* the C-function that implements the Python function and returns static PyObject*  */
+      METH_VARARGS,           /* flags indicating parametersaccepted for this function */
+      PyDoc_STR("A geometric series up to n. sum_up_to_n(z^n)")}, /*  The docstring for the function *///NEED TO CHANGE DESCRIPTION
+
 
 
     {NULL, NULL, 0, NULL}     /* The last entry must be all NULL as shown to act as a

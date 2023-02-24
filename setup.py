@@ -4,6 +4,6 @@ import os
 setup(name='mykmeanssp',
       version='1.0',
       description='kmeans algorithm',
-      ext_modules=[Extension('mykmeanssp', sources=['spkmeansmodule.c'])])
+      ext_modules=[Extension('mykmeanssp', sources=['spkmeansmodule.c', 'spkmeans.c'])])
       
 

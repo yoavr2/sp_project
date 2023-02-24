@@ -1,8 +1,9 @@
-#import numpy as np
-#import pandas as pd
+import mykmeanssp as kpp
+import numpy as np
+import pandas as pd
 import sys
 import os
-import mykmeanssp as kpp
+
 import enum
 
 
@@ -19,7 +20,7 @@ def calc_DL(row, centroids, cor_num):
     for centroid in centroids:
         diff = 0
         for j in range(cor_num):
-            diff += ((row[j] - centroid['x_' + str(j)]) ** 2)
+            diff += ((row[j] - centroid[j]) ** 2)
         if diff < min_diff:
             min_diff = diff
     return min_diff
@@ -33,7 +34,7 @@ def kmeans_plus_plus(k, max_iter, eps, file_name):
 
     lst_centroids = []
     centroids_indices = []
-    nodes = pd.read_csv(file_name, header=None, )
+    nodes = pd.read_csv(file_name, header=None, index_col=False)
     np.random.seed(0)
     indexes = [i for i in range(N - 1)]
     index = np.random.choice(indexes)
@@ -51,7 +52,11 @@ def kmeans_plus_plus(k, max_iter, eps, file_name):
         lst_centroids.append(nodes.loc[key])
         centroids_indices.append(key)
 
-    kpp_res = kpp.fit(k, max_iter, eps, "my_nice_output.txt")   # result will be written to output
+    print(nodes)
+    print(cor_num)
+    print(centroids_indices)
+
+    kpp_res = kpp.fit(k, max_iter, eps, nodes.values.tolist(), centroids_indices)   # result will be written to output
 
     if kpp_res != 0:
         print("An Error Has Occurred")
@@ -72,7 +77,7 @@ def cal_matrix(k, goal, file_name):
 
 
 if __name__ == '__main__':
-
+    """
     args = sys.argv  # args[0] = k, args[1] = goal, args[2] = file_name
     try:
         fr = open("tmpFile.txt", "r")
@@ -88,7 +93,12 @@ if __name__ == '__main__':
     except:
         print("An Error Has Occurred\n")
 
-    data_in_float = [[float(x) for x in data_points[i].split(",")] for i in range(data_num-1)]
+    """
+
+    #data_in_float = [[float(x) for x in data_points[i].split(",")] for i in range(data_num-1)]
+
+    data_in_float2 = pd.read_csv("tmpFile.txt", header=None)
+    kmeans_plus_plus(2, 300, 0, "tmpFile.txt")
 
     mat = [[], []]
     mat[0] = [1, 2, 3]
@@ -96,9 +106,10 @@ if __name__ == '__main__':
     # mat[2] = [1, 1, 1]
     #print(data_in_float)
     #a = kpp.heuristic(data_in_float)
-    a = kpp.jacobi(data_in_float)
-    print("mat: ")
-    print(a)
+    #print(data_in_float2.values.tolist())
+    #a = kpp.jacobi(data_in_float2.values.tolist())
+    #print("mat: ")
+    #print(a)
     """
 
     try:
